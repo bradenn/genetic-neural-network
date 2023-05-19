@@ -8,6 +8,12 @@
 #include <cstdint>
 #include <random>
 
+static int randomUInt() {
+    auto a = std::chrono::steady_clock::now();
+    auto value = (a.time_since_epoch().count())/1000;
+    std::srand(value);
+    return std::rand();
+}
 static uint16_t randomU16Bit() {
 
     // Random number engine

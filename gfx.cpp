@@ -72,28 +72,29 @@ GFX::GFX() {
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND_DST_ALPHA);
+
     fr = new FontRenderer("./IBMPlexSans-Regular.ttf");
     // Main loop
     glfwWindowHint(GLFW_SAMPLES, 2);
     glEnable(GL_MULTISAMPLE);
-
-//    glViewport(0, (int)height, (int)width, (int)height);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND_DST_ALPHA_EXT);
+    glViewport(0, 0, (int)width*2, (int)height*2);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 //    gluPerspective(60.0, 4.0 / 3.0, 0, 100.0);
-    glOrtho(-width/2, width/2, -height/2, height/2, 0, 100);
+    glOrtho(-width/2, width/2, height/2, -height/2, 0, 100);
 //    glFrustum(-width/2, width/2, -height/2, height/2, 0, 1000);
     glMatrixMode(GL_MODELVIEW);
+
 
 }
 void GFX::text(const string& text, double size, double x, double y, double z) {
     glPushMatrix();
-//    glTranslated(x, y, z);
+    glTranslated(x, y, z);
 
     glColor4d(1,1,1,1);
-    fr->renderText(text, 64, x, y, z);
+    fr->renderText(text, size, x, y, z);
     glPopMatrix();
 }
 

@@ -4,19 +4,20 @@
 
 #include <cmath>
 #include "population.h"
+#include "random.h"
+#include "deque"
 
-Population::Population(int size) {
+using std::deque;
+
+Population::Population(int size) : Pane("Population") {
+    inputs = 8;
+    neurons = 8;
+    outputs = 4;
+    genes = 1000;
+    ticksPerGeneration = 1000;
+    mutationRate = 10;
     for (int i = 0; i < size; ++i) {
-        auto *g = new Genome(6, 10, 4, Genome::generateRandom(4000));
-        map<uint8_t, uint16_t> inputs;
-//        for (int d = 0; d < 10; ++d) {
-//            time_t t;
-//            time(&t);
-//            srand(t);
-//            uint8_t id = (rand() % 128) & 0xFFFF;
-//            inputs[id] = rand() & 0xffff;
-//        }
-//        g->compute(inputs);
+        auto *g = new Genome(inputs, neurons, outputs, Genome::generateRandom(genes));
         genomes.push_back(g);
     }
 }
@@ -40,156 +41,148 @@ double calcAngleAndMap(double x1, double y1, double x2, double y2, double p, dou
 }
 
 void Population::tick() {
-    int minDist = 0;
-    int minGenome = 0;
-    int maxDist = 0;
-    int maxGenome = 0;
+    double minDist = 0;
+    double maxDist = 0;
+
+    for (auto &genome: genomes) {
+        map<uint8_t, uint16_t> in{};
+
+        in[0] = (uint16_t) ((double) (1 << 16) +
+                            sin(((2.0 * M_PI) / ticksPerGeneration * 4) * (ticks)) * ((1 << 16) / 2.0));
+
+        in[1] = (uint16_t) ((double) (1 << 16) +
+                            cos(((2.0 * M_PI) / ticksPerGeneration * 4) * (ticks)) * ((1 << 16) / 2.0));
+
+        in[2] = (uint16_t) calcAngleAndMap(genome->posX, genome->posY, px, py, 0, 1 << 16);
 
 
-    for (int i = 0; i < genomes.size(); i++) {
+        double dst = sqrt(pow(genome->posX - px, 2) + pow(genome->posY - py, 2));
+        in[3] = ((1 << 16) / 2) - (int) (dst * 100.0);
+
+        in[4] = genome->posX<px?(1<<16)/2:0; // +x
+        in[5] = genome->posX>px?(1<<16)/2:0; // -x
+
+        in[6] = genome->posY<py?(1<<16)/2:0; // +y
+        in[7] = genome->posY>py?(1<<16)/2:0; // -y
 
 
-        map<uint8_t, uint16_t> inputs;
-        auto a = std::chrono::steady_clock::now();
-        auto value = (a.time_since_epoch().count()) % 1000;
+        genome->distance = (double) dst;
 
-        inputs[1] = (uint16_t) ((double) (1 << 16) + cos((2.0 * M_PI) * ((double) value / 1000.0/100.0)) * (2 ^ 16 /
-                                                                                                                2));
+        auto out = genome->compute(in);
 
-        inputs[1] = (uint16_t) ((double) (1 << 16) + cos((2.0 * M_PI) * ((double) value / 1000.0/100.0)) * (2 ^ 16 /
-                2));
+        genome->posX += out[0] * 2;
+        genome->posX -= out[1] * 2;
+        genome->posY += out[2] * 2;
+        genome->posY -= out[3] * 2;
 
-        inputs[2] = (uint16_t) calcAngleAndMap(genomes[i]->posX, genomes[i]->posY, px, py, 0, 1 << 16);
-        inputs[3] = (int) sqrt(pow(genomes[i]->posX - px, 2) + pow(genomes[i]->posY - py, 2));
-        inputs[4] = (1 << 16)+(int)(px-genomes[i]->posX);
-        inputs[5] = (1 << 16)+(int)(py-genomes[i]->posY);
+        if (genome->posX > 600 || genome->posX < -600 || genome->posY > 600 || genome->posY < -600) {
+            genome->score -= 1000;
+        } else {
+            if (dst < minDist) {
+                minDist = dst;
+            }
 
-        if (inputs[3] < minDist) {
-            minDist = inputs[3];
-            minGenome = i;
+            if (dst > maxDist) {
+                maxDist = dst;
+            }
         }
-
-        if (inputs[3] > maxDist) {
-            maxDist = inputs[3];
-            maxGenome = i;
-        }
-
-        auto out = genomes[i]->compute(inputs);
-        genomes[i]->aX += out[0] * 1;
-        genomes[i]->aY += out[1] * 1;
-        genomes[i]->aX -= out[2] * 1;
-        genomes[i]->aY -= out[3] * 1;
-
-        if (genomes[i]->posX > 500 || genomes[i]->posX < -500 || genomes[i]->posY > 500 || genomes[i]->posY < -500) {
-            genomes[i]->score = -1000;
-        }
-
-
     }
 
-    ticks++;
+    min = minDist;
+    max = maxDist;
 
-    if (ticks >= 1000) {
-        round++;
-        ticks = 0;
-    }
+    ticks = (ticks + 1) % ticksPerGeneration;
 
     std::sort(genomes.begin(), genomes.end(), [this](Genome *lhs, Genome *rhs) {
-        return sqrt(pow(lhs->posX - px, 2) + pow(lhs->posY - py, 2)) < sqrt(pow(rhs->posX - px,2) + pow(rhs->posY -
-                                                                                                        py, 2));
+        auto lhsDistance = sqrt(pow(lhs->posX - px, 2) + pow(lhs->posY - py, 2));
+        auto rhsDistance = sqrt(pow(rhs->posX - px, 2) + pow(rhs->posY - py, 2));
+        return lhsDistance < rhsDistance;
     });
+
     int id = 0;
+
     for (const auto &item: genomes) {
-        item->score += ((int)genomes.size()/2)-id;
-//        printf("%d - %d\n", id, item->score);
+        item->score += (int) genomes.size() / 2 - id;
         id++;
     }
 
     if (ticks == 0) {
+        round++;
 
+
+        px = cos((randomUInt() % 1000 / 250.0) * M_PI * 2) * 200;
+        py = sin((randomUInt() % 1000 / 250.0) * M_PI * 2) * 200;
 
         std::sort(genomes.begin(), genomes.end(), [this](Genome *lhs, Genome *rhs) {
             return lhs->score > rhs->score;
         });
+
+
         vector<Genome *> pool;
-
-
-        int cnt = 0;
-        vector<Genome *> nextGen;
-
-        px = cos((rand() % 1000 / 250.0) * M_PI * 2) * 350;
-        py = sin((rand() % 1000 / 250.0) * M_PI * 2) * 350;
-
-        Genome *last = nullptr;
         for (auto &item: genomes) {
-//            printf("%d - %d\n", cnt, item->score);
 
-            if (cnt >= genomes.size() /4) {
+            if (item->score < 0 && pool.size() >= genomes.size() / 2) {
                 break;
             }
-            if (last == nullptr) {
-                last = item;
-                continue;
-            }
 
-            nextGen.push_back(new Genome(item->numInputs, item->numNeurons, item->numOutputs, item->mingle(last)));
-            nextGen.push_back(new Genome(item->numInputs, item->numNeurons, item->numOutputs, item->mingle(last)));
-            nextGen.push_back(new Genome(item->numInputs, item->numNeurons, item->numOutputs, last->mingle(item)));
-            nextGen.push_back(new Genome(item->numInputs, item->numNeurons, item->numOutputs, last->mingle(item)));
-            last = nullptr;
-
-            cnt++;
+            pool.push_back(item);
         }
+
+//
+        vector<Genome *> nextGen;
+        for (int i = 0; i < genomes.size() - 4; i += 2) {
+
+            auto item = pool[(i) % pool.size()];
+            auto mate = pool[(i + 1) % pool.size()];
+            nextGen.push_back(
+                    new Genome(item->numInputs, item->numNeurons, item->numOutputs, item->mingle(mate, mutationRate)));
+            nextGen.push_back(
+                    new Genome(mate->numInputs, mate->numNeurons, mate->numOutputs, mate->mingle(item, mutationRate)));
+        }
+        for (int i = 0; i < 4; ++i) {
+            nextGen.push_back(new Genome(inputs, neurons, outputs, Genome::generateRandom(genes)));
+        }
+
+
         for (auto &item: genomes) {
             delete item;
         }
-        genomes.clear();
 
-//        std::sort(nextGen.begin(), nextGen.end(), [](Genome *lhs, Genome *rhs) {
-//            auto a = std::chrono::steady_clock::now();
-//            auto value = (a.time_since_epoch().count());
-//            std::srand(value);
-//            auto c = std::rand();
-//            a = std::chrono::steady_clock::now();
-//            value = (a.time_since_epoch().count());
-//            std::srand(value);
-//            auto b = std::rand();
-//            return c > b;
-//        });
+        genomes.clear();
+        pool.clear();
+
+
+        std::sort(nextGen.begin(), nextGen.end(), [](Genome *lhs, Genome *rhs) {
+            return randomUInt() > randomUInt();
+        });
+
         genomes = nextGen;
+
+        nextGen.clear();
 
     }
 }
 
-void Population::render(GFX *g) {
-    glPushMatrix();
-    glBegin(GL_LINES);
-    glVertex3d(0,0,0);
-    glVertex3d(g->width/2,0,0);
-    glEnd();
-    glPopMatrix();
-    double xPadding = 10;
-    double lw = (g->width - xPadding * 2) / (double) genomes.size();
-    double lh = g->height / 8.0;
+void Population::render(GFX *g, int width, int height) {
 
+    int rows = 9;
+    int cols = 6;
+
+    int gap = 4;
+    double lw = (double) (width) / cols;
+    double lh = (double) (height) / rows;
+    double lwG = (double) (width - (gap * (2 + cols - 1))) / cols;
+    double lhG = (double) (height - (gap * (2 + rows - 1))) / rows;
 
     glPushMatrix();
-    glTranslated(-g->width / 2, -g->height / 2 + 10, 0);
+//    glTranslated(-g->width / 2, -g->height / 2 + 10, 0);
     for (int i = 0; i < genomes.size(); i++) {
         glPushMatrix();
-        glTranslated(lw * i + xPadding, 0, 0);
-        genomes[i]->render(g, lw, lh);
+        glTranslated(gap / 2.0 + lw * (i % cols), gap / 2.0 + floor(i / cols) * lh, 0);
+        genomes[i]->render(g, lwG, lhG, min, max);
         glPopMatrix();
     }
 
     glPopMatrix();
 
-    glPushMatrix();
-    glTranslated(0, g->height / 4 + 10, 0);
-    for (int i = 0; i < genomes.size(); i++) {
-        genomes[i]->drawChar(g);
-    }
-
-    g->drawRect(px - 20, py - 20, 40, 40);
-    glPopMatrix();
 }

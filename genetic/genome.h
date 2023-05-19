@@ -29,13 +29,15 @@ public:
 
     Genome(uint8_t inputs, uint8_t neurons, uint8_t outputs, const vector<Gene> &genes);
 
+    ~Genome();
+
     map<uint8_t, float> compute(const map<uint8_t, uint16_t> &stimuli);
 
-    vector<Gene> mingle(Genome *mate);
+    vector<Gene> mingle(Genome *mate, int mutationRate);
 
     static vector<Gene> generateRandom(int numGenes);
 
-    void render(GFX *g, double dx, double dy);
+    void render(GFX *g, double dx, double dy, double min, double max);
 
 
     double posX = 0;
@@ -43,7 +45,9 @@ public:
     double aX = 0;
     double aY = 0;
 
-    void drawChar(GFX *pGfx);
+    double distance = 0;
+
+    void drawChar(GFX *g, double min, double max);
 
     int score = 0;
     uint8_t numOutputs = 0;
@@ -73,6 +77,9 @@ protected:
     bool geneDestinationExists(Gene gene);
 
     void resetValues();
+
+
+
 };
 
 

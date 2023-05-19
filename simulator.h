@@ -9,6 +9,9 @@
 #include "gfx.h"
 #include "genetic/genome.h"
 #include "genetic/population.h"
+#include "window/frame.h"
+#include "genetic/world.h"
+#include "genetic/statistics.h"
 
 class Simulator {
 public:
@@ -16,11 +19,14 @@ public:
 
     void render();
 
-    void tick();
 
 private:
 
+    Frame *frame;
+
     GFX *gfx;
+    World *world;
+    Statistics *statistics;
     Population *population;
 };
 

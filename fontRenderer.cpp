@@ -23,8 +23,8 @@ FontRenderer::FontRenderer(const string &fontName) {
 double FontRenderer::stringWidth(const string &text) {
     double width = 0.0;
     FT_GlyphSlot slot = ftFace->glyph;
-    for (char c: text) {
         FT_Set_Pixel_Sizes(ftFace, 0, 24);
+    for (char c: text) {
         FT_Load_Char(ftFace, c, FT_LOAD_RENDER);
 
 //        renderChar(&slot->bitmap, x + slot->bitmap_left, y - slot->bitmap_top, z);
@@ -46,6 +46,7 @@ void FontRenderer::renderChar(FT_Bitmap_ *bitmap, double x, double y, double z) 
     glBindTexture(GL_TEXTURE_2D, texture);
 
     // Set the texture parameters
+// Set the texture parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -88,21 +89,22 @@ void FontRenderer::renderChar(FT_Bitmap_ *bitmap, double x, double y, double z) 
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
     glPopMatrix();
+    glDeleteTextures(1, &texture);
 }
 
 void FontRenderer::renderText(const string &text, double size, double x, double y, double z) {
     glPushMatrix();
-    glScaled(1, -1, 1);
+    glScaled(1, 1, 1);
     FT_GlyphSlot slot = ftFace->glyph;
     double rx = 0, ry = 0, rz = 0;
+    FT_Set_Pixel_Sizes(ftFace, 0, (int) size);
     for (char c: text) {
-        FT_Set_Pixel_Sizes(ftFace, 0, (int)size);
         FT_Load_Char(ftFace, c, FT_LOAD_RENDER);
 
         renderChar(&slot->bitmap, rx + slot->bitmap_left, ry - slot->bitmap_top, rz);
 
-        rx += slot->advance.x >> 6;
-        ry += slot->advance.y >> 6;
+        rx += (int) slot->advance.x >> 6;
+        ry += (int) slot->advance.y >> 6;
     }
     glPopMatrix();
 }

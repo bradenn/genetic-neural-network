@@ -7,7 +7,18 @@
 
 
 #include "../gfx.h"
+#include <map>
 #include "pane.h"
+
+using std::map;
+using std::pair;
+
+struct PaneBounds {
+    int col;
+    int row;
+    int spanX;
+    int spanY;
+};
 
 class Frame {
 
@@ -15,13 +26,15 @@ public:
 
     Frame(int cols, int rows, int width, int height, int gap);
 
-    void addPane(int col, int row, int spanX, int spanY);
+    void addPane(int col, int row, int spanX, int spanY, Pane *pane);
 
     void render(GFX *gfx);
 
 private:
 
-    vector<pane>
+    vector<pair<PaneBounds, Pane*>> panes;
+
+    bool showGrid = false;
 
     void recalculateSize();
 
@@ -41,6 +54,10 @@ private:
 
     int spanHeight(int spanCols) const;
     int spanWidth(int spanRows) const;
+
+    int paneOffsetX(int col) const;
+    int paneOffsetY(int row) const;
+
 
 };
 
